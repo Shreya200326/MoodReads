@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // In dev: empty string → Vite proxy → localhost:8000
 // In prod: set VITE_API_URL to your deployed backend URL
-const BASE = import.meta.env.VITE_API_URL || '';
+const BASE = (import.meta as any).env?.VITE_API_URL || '';
 
 const api = axios.create({
   baseURL: BASE,
