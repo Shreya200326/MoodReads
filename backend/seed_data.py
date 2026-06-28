@@ -135,42 +135,67 @@ BOOKS = [
     {"title": "Anxious People", "author": "Fredrik Backman", "genre": "Literary Fiction", "year": 2019, "pages": 341, "isbn": "9781501160844", "description": "A bank robber accidentally takes an apartment viewing hostage. What follows is absurd, tender, and profound.", "mood_tags": ["Happy", "Peaceful", "Sad"], "cover_url": ""},
 ]
 
-
 def seed():
     db = SessionLocal()
     try:
-        existing = db.query(Book).count()
-        if existing >= len(BOOKS):
-            print(f"Already have {existing} books. Skipping seed.")
-            return
-
         added = 0
+        updated = 0
+
         for b in BOOKS:
             exists = db.query(Book).filter(Book.isbn == b["isbn"]).first()
-            if not exists:
-                book = Book(
-                    title=b["title"],
-                    author=b["author"],
-                    genre=b["genre"],
-                    year=b.get("year"),
-                    pages=b.get("pages"),
-                    isbn=b.get("isbn"),
-                    description=b.get("description", ""),
-                    mood_tags=b.get("mood_tags", []),
-                    cover_url=b.get("cover_url", ""),
+
+            # Generate cover from ISBN if none supplied
+            cover_url = b.get("cover_url")
+            if not cover_url and b.get("isbn"):
+                cover_url = (
+                    f"https://covers.openlibrary.org/b/isbn/{b['isbn']}-L.jpg"
                 )
-                db.add(book)
-                added += 1
+
+            if exists:
+                changed = False
+
+                if not exists.cover_url:
+                    exists.cover_url = cover_url
+                    changed = True
+
+                if not exists.description:
+                    exists.description = b.get("description", "")
+                    changed = True
+
+                if not exists.mood_tags:
+                    exists.mood_tags = b.get("mood_tags", [])
+                    changed = True
+
+                if changed:
+                    updated += 1
+
+                continue
+
+            book = Book(
+                title=b["title"],
+                author=b["author"],
+                genre=b["genre"],
+                year=b.get("year"),
+                pages=b.get("pages"),
+                isbn=b.get("isbn"),
+                description=b.get("description", ""),
+                mood_tags=b.get("mood_tags", []),
+                cover_url=cover_url,
+            )
+
+            db.add(book)
+            added += 1
 
         db.commit()
-        print(f"✅ Seeded {added} new books. Total: {db.query(Book).count()}")
+
+        print(
+            f"✅ Added {added} books | Updated {updated} books | Total: {db.query(Book).count()}"
+        )
+
     except Exception as e:
         db.rollback()
         print(f"❌ Error seeding: {e}")
         raise
+
     finally:
         db.close()
-
-
-if __name__ == "__main__":
-    seed()
