@@ -45,17 +45,18 @@ def get_summary(book_id: int, db: Session = Depends(get_db)):
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    if book.ai_summary:
-        return {"summary": book.ai_summary, "cached": True}
-
+    # Always generate a fresh summary
     summary = ai_service.generate_book_summary(
         title=book.title,
         author=book.author,
         genre=book.genre or "",
         description=book.description or "",
     )
+
+    # Save the new summary
     book.ai_summary = summary
     db.commit()
+
     return {"summary": summary, "cached": False}
 
 
