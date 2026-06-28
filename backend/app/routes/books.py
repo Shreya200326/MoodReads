@@ -18,7 +18,7 @@ def list_books(
     genre: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     skip: int = 0,
-    limit: int = 24,
+    limit: int = 200,
     db: Session = Depends(get_db),
 ):
     q = db.query(Book)
