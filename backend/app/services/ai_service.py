@@ -51,7 +51,7 @@ def _ask(system: str, user: str, max_tokens: int = 800, history: list = None) ->
     print(response)
 
     return response.text
-}
+
 
 
 # ── Book Summary ──────────────────────────────────────────────────────────────
