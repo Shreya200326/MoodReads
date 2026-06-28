@@ -42,9 +42,16 @@ def _ask(system: str, user: str, max_tokens: int = 800, history: list = None) ->
 
     response = model.generate_content(
         full_prompt,
-        generation_config={"max_output_tokens": max_tokens},
+        generation_config={
+            "temperature": 0.7,
+            "max_output_tokens": max_tokens,
+        },
     )
+
+    print(response)
+
     return response.text
+}
 
 
 # ── Book Summary ──────────────────────────────────────────────────────────────
