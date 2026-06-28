@@ -25,12 +25,11 @@ def _client():
         return None
 
 
-def _ask(system: str, user: str, max_tokens: int = 600, history: list = None) -> str:
+def _ask(system: str, user: str, max_tokens: int = 800, history: list = None) -> str:
     model = _client()
     if not model:
         return _NO_KEY_MSG
 
-    # Combine system + history + user into a single prompt for Gemini
     parts = [f"[SYSTEM]\n{system}\n\n"]
 
     if history:
@@ -53,7 +52,8 @@ def _ask(system: str, user: str, max_tokens: int = 600, history: list = None) ->
 def generate_book_summary(title: str, author: str, genre: str, description: str) -> str:
     system = (
         "You are a literary curator who writes compelling, spoiler-free 2-minute read summaries. "
-        "Your tone is warm, atmospheric, and makes readers want to pick up the book immediately."
+        "Your tone is warm, atmospheric, and makes readers want to pick up the book immediately. "
+        "Be specific about the writing style, emotional impact, and what makes this book unique."
     )
     user = f"""Write a 2-minute read summary for "{title}" by {author}.
 
@@ -61,29 +61,26 @@ Genre: {genre}
 Known details: {description}
 
 Structure:
-1. Opening hook (1 sentence about the feeling/world)
-2. Core premise (2-3 sentences, no spoilers)
-3. Themes (bullet list: max 4)
-4. Perfect for readers who... (1 sentence)
+1. Opening hook (1 vivid sentence about the world or feeling)
+2. Core premise (2-3 sentences, no spoilers, be specific)
+3. What makes it special — writing style, pacing, characters (2 sentences)
+4. Themes (bullet list: max 4, be specific not generic)
+5. Perfect for readers who... (1 sentence, be specific)
 
-Keep it under 200 words total."""
-    return _ask(system, user, max_tokens=400)
+Keep it under 220 words. Make every word count."""
+    return _ask(system, user, max_tokens=500)
 
 
 # ── Mood-based Semantic Recommendations ──────────────────────────────────────
 
 def semantic_mood_recommend(mood: str, genre: Optional[str], books_json: str) -> List[int]:
-    """
-    Uses Gemini to semantically match a mood to books.
-    Returns a list of book IDs ordered by relevance.
-    """
     model = _client()
     if not model:
         return []
 
     system = (
         "You are a book matchmaker who understands emotional resonance deeply. "
-        "Return ONLY a JSON array of book IDs, nothing else."
+        "Return ONLY a JSON array of book IDs, nothing else. No explanation."
     )
     user = f"""Mood I'm feeling: {mood}
 {"Preferred genre: " + genre if genre else "No genre preference."}
@@ -91,10 +88,11 @@ def semantic_mood_recommend(mood: str, genre: Optional[str], books_json: str) ->
 Books available (ID | Title | Author | Genre | Moods):
 {books_json}
 
-Return the 6 book IDs that best match this mood semantically (consider emotional resonance, not just tags).
-Respond with ONLY a JSON array, e.g.: [3, 12, 7, 1, 19, 5]"""
+Return exactly 8 book IDs that best match this mood semantically.
+Consider emotional resonance, themes, and atmosphere — not just mood tags.
+Respond with ONLY a JSON array, e.g.: [3, 12, 7, 1, 19, 5, 22, 8]"""
 
-    raw = _ask(system, user, max_tokens=80)
+    raw = _ask(system, user, max_tokens=100)
     try:
         match = re.search(r"\[[\d,\s]+\]", raw)
         if match:
@@ -110,7 +108,7 @@ def analyze_mood_journal(journal_text: str, books_json: str) -> dict:
     system = (
         "You are an empathetic AI librarian who reads between the lines of what people write "
         "and recommends books that meet them exactly where they are emotionally. "
-        "Respond ONLY with valid JSON."
+        "Be perceptive, warm, and specific. Respond ONLY with valid JSON."
     )
     user = f"""A reader shared this today:
 "{journal_text}"
@@ -120,13 +118,13 @@ Available books (ID | Title | Author | Moods):
 
 Respond with this exact JSON structure:
 {{
-  "mood_analysis": "2-sentence empathetic interpretation of their emotional state",
-  "detected_moods": ["mood1", "mood2"],
-  "book_ids": [id1, id2, id3, id4],
-  "recommendation_reason": "1-2 sentences on why these books fit their state right now"
+  "mood_analysis": "2-sentence empathetic interpretation — be specific about what you sense in their words",
+  "detected_moods": ["mood1", "mood2", "mood3"],
+  "book_ids": [id1, id2, id3, id4, id5],
+  "recommendation_reason": "2 sentences on why these specific books fit their emotional state right now"
 }}"""
 
-    raw = _ask(system, user, max_tokens=400)
+    raw = _ask(system, user, max_tokens=500)
     try:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:
@@ -144,16 +142,19 @@ Respond with this exact JSON structure:
 # ── AI Librarian Chat ─────────────────────────────────────────────────────────
 
 def librarian_chat(message: str, history: list, books_json: str) -> dict:
-    system = f"""You are the MoodReads AI Librarian — warm, knowledgeable, and intuitive.
-You curate books from this collection:
+    system = f"""You are the MoodReads AI Librarian — deeply well-read, witty, and perceptive.
+You have intimate knowledge of every book in this collection:
 {books_json}
 
-When recommending books, embed a JSON block at the very end of your response (on its own line):
-BOOK_IDS:[id1,id2,id3]
+Give rich, nuanced answers. Reference specific characters, plot structures, writing style,
+and emotional impact. Compare to other books when relevant. Be specific, never generic.
+If someone asks about tone, mood, or whether to read something — give a real opinion.
+Keep responses under 200 words but make them count.
 
-Be conversational, cite specific books by title, and give brief reasons why each fits."""
+When recommending specific books from the collection, end your response with:
+BOOK_IDS:[id1,id2,id3]"""
 
-    raw = _ask(system, message, max_tokens=600, history=history)
+    raw = _ask(system, message, max_tokens=1000, history=history)
 
     book_ids = []
     clean_text = raw
@@ -166,3 +167,32 @@ Be conversational, cite specific books by title, and give brief reasons why each
             pass
 
     return {"response": clean_text, "book_ids": book_ids}
+
+
+# ── Reading Compatibility Score ───────────────────────────────────────────────
+
+def reading_compatibility(user_books: list, other_books: list, user_name: str, other_name: str) -> dict:
+    system = (
+        "You are a book taste analyst. Analyze two readers' shelves and find their compatibility. "
+        "Respond ONLY with valid JSON."
+    )
+    user_prompt = f"""
+{user_name}'s books: {', '.join(user_books[:15])}
+{other_name}'s books: {', '.join(other_books[:15])}
+
+Respond with this JSON:
+{{
+  "score": <0-100 integer>,
+  "shared_taste": "1 sentence describing what they both love",
+  "you_might_love": ["book title 1", "book title 2", "book title 3"],
+  "conversation_starter": "1 fun question they could discuss together"
+}}"""
+
+    raw = _ask(system, user_prompt, max_tokens=300)
+    try:
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except Exception:
+        pass
+    return {"score": 50, "shared_taste": "You both love great stories.", "you_might_love": [], "conversation_starter": "What's your all-time favourite book?"}
