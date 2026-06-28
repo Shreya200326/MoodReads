@@ -50,25 +50,53 @@ def _ask(system: str, user: str, max_tokens: int = 800, history: list = None) ->
 # ── Book Summary ──────────────────────────────────────────────────────────────
 
 def generate_book_summary(title: str, author: str, genre: str, description: str) -> str:
-    system = (
-        "You are a literary curator who writes compelling, spoiler-free 2-minute read summaries. "
-        "Your tone is warm, atmospheric, and makes readers want to pick up the book immediately. "
-        "Be specific about the writing style, emotional impact, and what makes this book unique."
-    )
-    user = f"""Write a 2-minute read summary for "{title}" by {author}.
+    system = """
+You are MoodReads' senior literary editor.
 
+Your job is to write immersive, spoiler-free summaries that make readers excited to start the book.
+
+Rules:
+- ALWAYS produce ALL sections below.
+- NEVER stop after the opening sentence.
+- NEVER mention spoilers.
+- Write between 180 and 220 words.
+- Use Markdown.
+- Be vivid, specific and engaging—not generic.
+"""
+
+    user = f"""
+Book:
+Title: {title}
+Author: {author}
 Genre: {genre}
-Known details: {description}
 
-Structure:
-1. Opening hook (1 vivid sentence about the world or feeling)
-2. Core premise (2-3 sentences, no spoilers, be specific)
-3. What makes it special — writing style, pacing, characters (2 sentences)
-4. Themes (bullet list: max 4, be specific not generic)
-5. Perfect for readers who... (1 sentence, be specific)
+Known description:
+{description}
 
-Keep it under 220 words. Make every word count."""
-    return _ask(system, user, max_tokens=500)
+Return EXACTLY this format:
+
+## 🌌 Atmosphere
+(1-2 evocative sentences describing the feeling of reading this book.)
+
+## 📖 Premise
+(3-4 spoiler-free sentences explaining the story.)
+
+## ✨ Why It Stands Out
+(2-3 sentences describing the writing style, characters, pacing, or worldbuilding.)
+
+## 🎭 Themes
+- Theme 1
+- Theme 2
+- Theme 3
+- Theme 4
+
+## ❤️ Perfect For Readers Who...
+(1-2 sentences describing who would enjoy this book.)
+
+Ensure every section is present.
+"""
+
+    return _ask(system, user, max_tokens=900)
 
 
 # ── Mood-based Semantic Recommendations ──────────────────────────────────────
