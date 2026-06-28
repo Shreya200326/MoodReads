@@ -20,7 +20,7 @@ def _client():
     try:
         import google.generativeai as genai
         genai.configure(api_key=settings.gemini_api_key)
-        return genai.GenerativeModel("gemini-1.5-flash")
+        return genai.GenerativeModel("gemini-2.0-flash")
     except ImportError:
         return None
 
