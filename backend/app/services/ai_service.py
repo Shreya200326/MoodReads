@@ -1,6 +1,6 @@
 """
-AI features powered by Claude (Anthropic).
-All calls gracefully degrade if ANTHROPIC_API_KEY is not set.
+AI features powered by Gemini (Google).
+All calls gracefully degrade if GEMINI_API_KEY is not set.
 """
 import json
 import re
@@ -9,33 +9,43 @@ from typing import List, Optional
 from ..config import settings
 
 _NO_KEY_MSG = (
-    "AI features require an ANTHROPIC_API_KEY. "
+    "AI features require a GEMINI_API_KEY. "
     "Add it to your .env file to unlock summaries, mood journaling, and the librarian."
 )
 
 
 def _client():
-    if not settings.anthropic_api_key:
+    if not settings.gemini_api_key:
         return None
     try:
-        import anthropic
-        return anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        import google.generativeai as genai
+        genai.configure(api_key=settings.gemini_api_key)
+        return genai.GenerativeModel("gemini-1.5-flash")
     except ImportError:
         return None
 
 
 def _ask(system: str, user: str, max_tokens: int = 600, history: list = None) -> str:
-    client = _client()
-    if not client:
+    model = _client()
+    if not model:
         return _NO_KEY_MSG
-    messages = list(history or []) + [{"role": "user", "content": user}]
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=max_tokens,
-        system=system,
-        messages=messages,
+
+    # Combine system + history + user into a single prompt for Gemini
+    parts = [f"[SYSTEM]\n{system}\n\n"]
+
+    if history:
+        for msg in history:
+            role = "User" if msg["role"] == "user" else "Assistant"
+            parts.append(f"[{role}]\n{msg['content']}\n\n")
+
+    parts.append(f"[User]\n{user}")
+    full_prompt = "".join(parts)
+
+    response = model.generate_content(
+        full_prompt,
+        generation_config={"max_output_tokens": max_tokens},
     )
-    return response.content[0].text
+    return response.text
 
 
 # ── Book Summary ──────────────────────────────────────────────────────────────
@@ -64,11 +74,11 @@ Keep it under 200 words total."""
 
 def semantic_mood_recommend(mood: str, genre: Optional[str], books_json: str) -> List[int]:
     """
-    Uses Claude to semantically match a mood to books — not just tag matching.
+    Uses Gemini to semantically match a mood to books.
     Returns a list of book IDs ordered by relevance.
     """
-    client = _client()
-    if not client:
+    model = _client()
+    if not model:
         return []
 
     system = (
@@ -145,7 +155,6 @@ Be conversational, cite specific books by title, and give brief reasons why each
 
     raw = _ask(system, message, max_tokens=600, history=history)
 
-    # Extract embedded book IDs
     book_ids = []
     clean_text = raw
     id_match = re.search(r"BOOK_IDS:\[([\d,\s]*)\]", raw)
