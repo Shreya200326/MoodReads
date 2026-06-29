@@ -25,7 +25,7 @@ def _client():
         return None
 
 
-def _ask(system: str, user: str, max_tokens: int = 800, history: list = None) -> str:
+def _ask(system: str, user: str, max_tokens: int = 1200, history: list = None) -> str:
     model = _client()
     if not model:
         return _NO_KEY_MSG
@@ -48,62 +48,49 @@ def _ask(system: str, user: str, max_tokens: int = 800, history: list = None) ->
         },
     )
 
-    print(response)
-
-    return response.text
-
+    # Handle blocked or empty responses gracefully
+    try:
+        return response.text
+    except Exception:
+        return "I wasn't able to generate a response for this. Please try again."
 
 
 # ── Book Summary ──────────────────────────────────────────────────────────────
 
 def generate_book_summary(title: str, author: str, genre: str, description: str) -> str:
-    system = """
-You are MoodReads' senior literary editor.
+    system = (
+        "You are MoodReads' senior literary editor. "
+        "Write immersive, complete, spoiler-free summaries. "
+        "You MUST complete all sections. Never stop mid-sentence. "
+        "Always produce the full response."
+    )
+    user = f"""Write a complete summary for "{title}" by {author} (Genre: {genre}).
 
-Your job is to write immersive, spoiler-free summaries that make readers excited to start the book.
+Description: {description}
 
-Rules:
-- ALWAYS produce ALL sections below.
-- NEVER stop after the opening sentence.
-- NEVER mention spoilers.
-- Write between 180 and 220 words.
-- Use Markdown.
-- Be vivid, specific and engaging—not generic.
-"""
-
-    user = f"""
-Book:
-Title: {title}
-Author: {author}
-Genre: {genre}
-
-Known description:
-{description}
-
-Return EXACTLY this format:
+Use EXACTLY this format and complete EVERY section fully:
 
 ## 🌌 Atmosphere
-(1-2 evocative sentences describing the feeling of reading this book.)
+Write 2 evocative sentences about the feeling and world of this book.
 
 ## 📖 Premise
-(3-4 spoiler-free sentences explaining the story.)
+Write 3 clear spoiler-free sentences explaining what the story is about.
 
 ## ✨ Why It Stands Out
-(2-3 sentences describing the writing style, characters, pacing, or worldbuilding.)
+Write 2 sentences about writing style, characters, pacing, or what makes it special.
 
 ## 🎭 Themes
-- Theme 1
-- Theme 2
-- Theme 3
-- Theme 4
+- Theme one
+- Theme two
+- Theme three
+- Theme four
 
 ## ❤️ Perfect For Readers Who...
-(1-2 sentences describing who would enjoy this book.)
+Write 1 sentence describing exactly who will love this book.
 
-Ensure every section is present.
-"""
+Complete all sections above. Do not stop early."""
 
-    return _ask(system, user, max_tokens=900)
+    return _ask(system, user, max_tokens=1200)
 
 
 # ── Mood-based Semantic Recommendations ──────────────────────────────────────
@@ -230,4 +217,9 @@ Respond with this JSON:
             return json.loads(match.group())
     except Exception:
         pass
-    return {"score": 50, "shared_taste": "You both love great stories.", "you_might_love": [], "conversation_starter": "What's your all-time favourite book?"}
+    return {
+        "score": 50,
+        "shared_taste": "You both love great stories.",
+        "you_might_love": [],
+        "conversation_starter": "What's your all-time favourite book?"
+    }

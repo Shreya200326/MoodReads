@@ -4,13 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from .routes import auth, books, users, ai
+from .routes.community import router as community_router
+
+# Import community models so Base.metadata knows about them before create_all
+from .routes.community import DiscussionRoom, DiscussionMessage  # noqa: F401
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MoodReads API", version="1.0.0", docs_url="/api/docs")
 
-# Allow both local dev and your deployed frontend URL.
-# Set FRONTEND_URL env var in production (e.g. https://moodreads.onrender.com)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 
 origins = [
@@ -29,10 +31,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router,  prefix="/auth",  tags=["Auth"])
-app.include_router(books.router, prefix="/books", tags=["Books"])
-app.include_router(users.router, prefix="/users", tags=["Users"])
-app.include_router(ai.router,    prefix="/ai",    tags=["AI"])
+app.include_router(auth.router,        prefix="/auth",       tags=["Auth"])
+app.include_router(books.router,       prefix="/books",      tags=["Books"])
+app.include_router(users.router,       prefix="/users",      tags=["Users"])
+app.include_router(ai.router,          prefix="/ai",         tags=["AI"])
+app.include_router(community_router)   # prefix is /community, defined in the router
 
 
 @app.get("/")
